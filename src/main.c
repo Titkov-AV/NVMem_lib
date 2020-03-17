@@ -26,6 +26,7 @@ int main () {
 	printf ("test1 registered\n");
 	ploop3 = register_var(2, 20, "test3");
 	printf ("test3 registered\n");
+
 	(*ploop1) = 46.12;
 	(*ploop3) = 424;
 
@@ -37,6 +38,9 @@ int main () {
 	printf ("From RAM %.3f\r\n", (*reading1));
 	reading3 = get_var("test3");
 	printf ("From RAM %d\r\n", (*(reading3+4)));
+	save_context_f("test1");
+//	float *ploop2 = get_var("test2");
+//	printf ("From RAM %lf\r\n", (*ploop2));
 	printf ("END\r\n");
 
 	//block until user types something

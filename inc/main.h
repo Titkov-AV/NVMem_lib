@@ -11,5 +11,7 @@
 #include "../inc/NVMem.h"
 
 
+#define PC = 1
+//#define MC
 //-------------------------------
 #endif /* MAIN_H_ */

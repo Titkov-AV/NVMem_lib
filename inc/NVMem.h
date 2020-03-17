@@ -8,9 +8,11 @@
 #define NVMEM_H_
 //-------------------------------
 
+#define PC 1
+
+#define NAME_LONG 50
 //-----------Prototypes----------//
-//nvmem_t *init_mem();					//Функция инициализации области ОЗУ под структуру для хранения в ЭНП
-void get_mem();						//Функция получения данных из ЭНП
+
 
 //-------------------------------//
 //тип регистрируемой переменной
@@ -21,9 +23,14 @@ typedef enum {
 	tintarr=3
 } tvar;
 
+typedef enum{
+	from_c1 = 1,		//файл copy1 отсутсвует
+	from_c2,			//файл copy2 отсутсвует
+	from_last
+} rl_reas;
 //структура описания item
 typedef struct {
-	char name_var[50];		//Имя переменной
+	char name_var[NAME_LONG];		//Имя переменной
 	tvar kind;				//Тип
 	int maxarraycnt;		//Максимальное количество элементов массива
 	void *var;				//указатель на значение
@@ -31,10 +38,11 @@ typedef struct {
 
 //структура данных для хранения в ЭНП
 typedef struct {
-	char copyright[50];
-	char version[50];
-	int changed_struct;
+	char copyright[NAME_LONG];
+	char version[NAME_LONG];
+	int struct_cnt;
 	int descript_size;
+	int vars_size;
 	int descript_maxcnt;
 	descr_item_t *begin_descript;	//указатель на начало расположения дискрипторов
 	void *begin_vars;				//начало области с переменными
@@ -47,5 +55,6 @@ extern int init(int descr_size, int var_size);
 extern void *register_var(tvar akind, int maxcnt, char *aname);
 //extern int *register_var(tvar akind, int maxcnt, char *aname);
 extern void *get_var(char *aname);
+extern int save_context_f(char *aname);
 //-------------------------------
 #endif /* NVMEM_H_ */

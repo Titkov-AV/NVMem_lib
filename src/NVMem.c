@@ -18,6 +18,7 @@ void *get_var(char *aname);
 
 static int load_header(char *filename);
 static int save_header(char *filename, nvmem_header_t *p);
+static int save_all(char *filename, nvmem_header_t *p);
 static int reload_struct(rl_reas reason);
 static int copy_header(nvmem_header_t *p);
 int save_context_f(char *aname);
@@ -64,7 +65,7 @@ def:
 		return -2;
 
 	//выделяем память
-	pnvvars = (nvmem_header_t*)calloc(1,descr_size + var_size);
+	pnvvars = (nvmem_header_t*)calloc(1,descr_size + var_size + 1);
 	if(!pnvvars) {
 		printf ("Allocation failure.");
 	//	exit (1);
@@ -75,6 +76,7 @@ def:
 	strcpy(pnvvars->version, ver);
 
 	pnvvars->struct_cnt = 0;				//счетчик записанных данных
+	pnvvars->file_mark = 0;
 	pnvvars->descript_size = descr_size;	//размер выделенной области под descrip
 	pnvvars->vars_size = var_size;			//размер выделенной области под vars
 	//максимальное количество дескрипторов, которое войдет в выделенную область
@@ -92,47 +94,19 @@ def:
 	pnvvars->lastitem=-1;				//-1 items отсутствуют
 
 	//создаем файл 1 и 2, храним 2 копии
-
-
-//	load_header("testing.dat");
-	save_header("copy1.dat", pnvvars);
+	save_all("copy1.dat", pnvvars);
 	pnvvars->struct_cnt++;
-	save_header("copy2.dat", pnvvars);
+	save_all("copy2.dat", pnvvars);
+	pnvvars->struct_cnt++;
 
-/*
-	FILE * fp3;
-	fp3 = fopen ("file.txt", "w+");
-	fprintf(fp3, "%s %s %s %d", "We", "are", "in", 2012);
-	fclose(fp3);
-
- 	FILE *fp1;
-	fp1=fopen("1.txt", "w+");
-	printf(fp1, "%s", "1");
-	fclose(fp1);
-
-	FILE *fp1, *fp2;
-	if ((fp1=fopen("1", "w+b"))==NULL){
-			printf ("Cannot open file.\n");
-			exit(1);
-		}
-		else{
-			fprintf("1st file", (*pnvvars));
-		}
-	if ((fp2=fopen("2", "w+b"))==NULL){
-		printf ("Cannot open file.\n");
-		exit(1);
-	}
-	else{
-		fprintf(fp2, pnvvars);
-	}*/
 	return 0;
 }
 
 //регистрирует переменную, возвращает указатель на область её расположения либо код ошибки (код ошибки <0)
-//akind - тип
-//maxcnt - максимальное количество элементов в массиве item
-//*aname - желаемое имя item
-//int *register_var(tvar akind, int maxcnt, char *aname)
+// akind - тип
+// maxcnt - максимальное количество элементов в массиве item
+// *aname - желаемое имя item
+// int *register_var(tvar akind, int maxcnt, char *aname)
 void *register_var(tvar akind, int maxcnt, char *aname)
 {
 	//добавить
@@ -167,12 +141,16 @@ void *register_var(tvar akind, int maxcnt, char *aname)
 	else if (akind == 3)
 		varsize = sizeof(int)*maxcnt;
 	else
-		return -2;
+		return -1;	//неизвестный тип данных
+	//проверка оставшегося свободного места
+	if ((pnvvars->current_end_vars+varsize)>(pnvvars->end_vars)){
+		return -2;	//недостаточно памяти
+	}
 
 	pnvvars->lastitem++;
 	if(pnvvars->lastitem > pnvvars->descript_maxcnt){
 		pnvvars->lastitem--;
-		return -1;
+		return -3;	//недопустимое количество items
 	}
 
 	//указатель на создаваемый item
@@ -182,6 +160,10 @@ void *register_var(tvar akind, int maxcnt, char *aname)
 	pitem->maxarraycnt = maxcnt;
 	pitem->var = pnvvars->current_end_vars;
 	pnvvars->current_end_vars += varsize;
+
+	//сохраняем с последними изменениями
+	save_context_f("test1");
+
 	return pitem->var;
 }
 
@@ -208,7 +190,20 @@ int save_context_f(char *aname){
 /*	 var_type;
 	 max_arr;
 	void *pdata;	*/					//указатель на данные переменной
+	if (pnvvars->file_mark == 0){
+		save_all("copy1.dat", pnvvars);
+		pnvvars->struct_cnt++;
+		pnvvars->file_mark = 1;
+	}
+	else{
+		save_all("copy2.dat", pnvvars);
+		pnvvars->struct_cnt++;
+		pnvvars->file_mark = 0;
+	}
 
+//	save_header("copy1.dat", pnvvars);
+
+	/*
 	//получаем указатель описание сохраняемой переменной
 	int i;
 	descr_item_t *item_discr;
@@ -222,7 +217,7 @@ int save_context_f(char *aname){
 	}
 	tvar var_type = item_discr->kind;
 	int max_arr = item_discr->maxarraycnt;
-	void *pdata = item_discr->var;
+	void *pdata = item_discr->var;*/
 
 //	FILE *fopen()
 	return 0;
@@ -236,7 +231,7 @@ static int save_header(char *filename, nvmem_header_t *p){
 
 	if ((fp = fopen(filename, "wb"))==NULL)
 	{
-		printf("Error occured while opening file");
+		printf("Error occured while opening file \n");
 		return -1;
 	}
 	//устанавливаем указатель на начало структуры
@@ -248,6 +243,34 @@ static int save_header(char *filename, nvmem_header_t *p){
 	}
 	fclose(fp);
 
+/*	for (int i=0; i<10; i++){
+		putc("10", fp);
+	}*/
+	return 0;
+};
+
+static int save_all(char *filename, nvmem_header_t *p){
+
+	FILE *fp;
+	char *c;
+	int size = sizeof(nvmem_header_t)+pnvvars->descript_size+pnvvars->vars_size;
+
+	if ((fp = fopen(filename, "wb"))==NULL)
+	{
+		printf("Error occured while opening file \n");
+		return -1;
+	}
+
+	//устанавливаем указатель на начало структуры
+	c = (char*)p;
+
+	//посимвольно записываем в файл структуру
+	for(int i=0; i<size; i++)
+	{
+		putc(*c++, fp);
+	}
+
+	fclose(fp);
 	return 0;
 };
 
@@ -255,7 +278,8 @@ static int load_header(char *filename){
 
 	FILE *fp;
 	char *c;
-	int i;
+	int sz = 0, i;
+//	char aname[10];
 
 	int size = sizeof(nvmem_header_t);
 	// выделяем память для считываемой структуры
@@ -263,24 +287,24 @@ static int load_header(char *filename){
 
 	if ((fp = fopen(filename, "rb")) == NULL)
 	    {
-	        printf("Error occured while opening file");
+	        printf("Error occured while opening file \n");
 	        return 1;
 	    }
 
 	// устанавливаем указатель на начало блока выделенной памяти
 	c = (char *)ptr;
 
-	// считываем посимвольно из файла
-	while ((i = getc(fp))!=EOF)
+	// считываем посимвольно из файла только header
+	while (((i = getc(fp))!=EOF)&&(sz < size))
 	{
 		*c = i;
 		c++;
+		sz++;
 	}
 
+//	strcpy(aname,ptr->copyright); //тестовая проверка
 	fclose(fp);
-/*	// вывод на консоль загруженной структуры
-	printf("%s %5d \n", ptr->copyright, ptr->lastitem);
-	free(ptr);*/
+
 	return 0;
 };
 
@@ -288,7 +312,7 @@ nvmem_header_t *ld_phead(char *filename){
 
 	FILE *fp;
 	char *c;
-	int i;
+	int i, sz = 0;
 
 	int size = sizeof(nvmem_header_t);
 	// выделяем память для считываемой структуры
@@ -296,7 +320,7 @@ nvmem_header_t *ld_phead(char *filename){
 
 	if ((fp = fopen(filename, "rb")) == NULL)
 	    {
-	        printf("Error occured while opening file");
+	        printf("Error occured while opening file \n");
 	        return NULL;
 	    }
 
@@ -304,10 +328,11 @@ nvmem_header_t *ld_phead(char *filename){
 	c = (char *)ptr;
 
 	// считываем посимвольно из файла
-	while ((i = getc(fp))!=EOF)
+	while (((i = getc(fp))!=EOF)&&(sz < size))
 	{
 		*c = i;
 		c++;
+		sz++;
 	}
 
 	fclose(fp);
@@ -325,10 +350,10 @@ static int reload_struct(rl_reas reason){
 			pnvvars = (nvmem_header_t*)calloc(1, p1->descript_size + p1->vars_size);
 			if(!pnvvars) {
 				printf ("Allocation failure.");
-				exit (1);
+//				exit (1);
 			}
-			pnvvars = p1;
-			//copy_header(p1);
+			//pnvvars = p1;
+			copy_header(p1);
 
 			//создаем copy2
 			break;
@@ -342,6 +367,8 @@ static int reload_struct(rl_reas reason){
 
 static int copy_header(nvmem_header_t *p){
 
+	int vars_col;
+
 	for (int i=0; i<NAME_LONG; i++){
 		pnvvars->copyright[i] = p->copyright[i];
 	}
@@ -352,17 +379,45 @@ static int copy_header(nvmem_header_t *p){
 	pnvvars->descript_size = p->descript_size;
 	pnvvars->vars_size = p->vars_size;
 	pnvvars->descript_maxcnt = p->descript_maxcnt;
-	pnvvars->begin_descript = p->begin_descript;
-	pnvvars->begin_vars = p->begin_vars;
-	pnvvars->end_vars = p->end_vars;
-	pnvvars->current_end_vars = p->current_end_vars;
 	pnvvars->lastitem = p->lastitem;
+
+	//вычисляем текущие указатели
+	pnvvars->begin_descript = (void *)pnvvars + sizeof(nvmem_header_t);
+	pnvvars->begin_vars = (void *)(pnvvars->begin_descript) + pnvvars->descript_maxcnt*sizeof(descr_item_t);
+	pnvvars->end_vars = (void *)(pnvvars->begin_vars) + pnvvars->vars_size;
+	vars_col = p->current_end_vars - p->begin_vars;
+	pnvvars->current_end_vars = pnvvars->begin_vars + vars_col;
 
 	return 0;
 };
 
 
+/*
+	FILE * fp3;
+	fp3 = fopen ("file.txt", "w+");
+	fprintf(fp3, "%s %s %s %d", "We", "are", "in", 2012);
+	fclose(fp3);
 
+ 	FILE *fp1;
+	fp1=fopen("1.txt", "w+");
+	printf(fp1, "%s", "1");
+	fclose(fp1);
+
+	FILE *fp1, *fp2;
+	if ((fp1=fopen("1", "w+b"))==NULL){
+			printf ("Cannot open file.\n");
+			exit(1);
+		}
+		else{
+			fprintf("1st file", (*pnvvars));
+		}
+	if ((fp2=fopen("2", "w+b"))==NULL){
+		printf ("Cannot open file.\n");
+		exit(1);
+	}
+	else{
+		fprintf(fp2, pnvvars);
+	}*/
 
 
 

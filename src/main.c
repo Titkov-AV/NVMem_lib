@@ -19,13 +19,15 @@ int main () {
 
 	printf ("START\n");
 	int i;
-	init(2000, 100);
+	init(400, 400);
 	printf ("INIT!\n");
 
 	ploop1 = register_var(1, 20, "test1");
 	printf ("test1 registered\n");
 	ploop3 = register_var(2, 20, "test3");
 	printf ("test3 registered\n");
+
+	save_context_f("test1");
 
 	(*ploop1) = 46.12;
 	(*ploop3) = 424;

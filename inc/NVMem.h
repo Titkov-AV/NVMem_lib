@@ -40,15 +40,16 @@ typedef struct {
 typedef struct {
 	char copyright[NAME_LONG];
 	char version[NAME_LONG];
-	int struct_cnt;
+	int struct_cnt;					//счетчик для хранения данных
+	int file_mark;					//признак файла, 0 - copy1, 1 - copy2
 	int descript_size;
 	int vars_size;
 	int descript_maxcnt;
+	int lastitem;					//индекс последнего зарегистрированного элемента
 	descr_item_t *begin_descript;	//указатель на начало расположения дискрипторов
 	void *begin_vars;				//начало области с переменными
 	void *end_vars;					//конец выделенной области по calloc
 	void *current_end_vars;			//конец  области уже занятой под переменные
-	int lastitem;					//индекс последнего зарегистрированного элемента
 } nvmem_header_t;
 
 extern int init(int descr_size, int var_size);

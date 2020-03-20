@@ -21,13 +21,13 @@ int main () {
 	int i;
 	init(400, 400);
 	printf ("INIT!\n");
-
+/*
 	ploop1 = register_var(1, 20, "test1");
 	printf ("test1 registered\n");
 	ploop3 = register_var(2, 20, "test3");
 	printf ("test3 registered\n");
 
-	save_context_f("test1");
+	save_context_f();
 
 	(*ploop1) = 46.12;
 	(*ploop3) = 424;
@@ -35,7 +35,7 @@ int main () {
 	for (i=0; i<=5; i++)
 	{
 		(*(ploop3+i)) = 232.5*i;
-	}
+	}*/
 	reading1 = get_var("test1");
 	printf ("From RAM %.3f\r\n", (*reading1));
 	reading3 = get_var("test3");

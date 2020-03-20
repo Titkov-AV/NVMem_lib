@@ -20,8 +20,8 @@ static int load_header(char *filename);
 static int save_header(char *filename, nvmem_header_t *p);
 static int save_all(char *filename, nvmem_header_t *p);
 static int reload_struct(rl_reas reason);
-static int copy_header(nvmem_header_t *p);
-int save_context_f(char *aname);
+static int descr_rep(int i);
+int save_context_f();
 //-------------------------------//
 
 nvmem_header_t *pnvvars;			//указатель на начало всей области
@@ -43,7 +43,7 @@ int init(int descr_size, int var_size)
 		}
 	}
 	else{
-		if ((file_ok=load_header("copy2"))==1){
+		if ((file_ok=load_header("copy2.dat"))==1){
 			reload_struct(from_c1);			//присутствует только copy1
 			return 0;
 		}
@@ -107,29 +107,9 @@ def:
 // maxcnt - максимальное количество элементов в массиве item
 // *aname - желаемое имя item
 // int *register_var(tvar akind, int maxcnt, char *aname)
-void *register_var(tvar akind, int maxcnt, char *aname)
-{
-	//добавить
-		///проверка на оставшееся место под переменную
-	////////////////////////////
+void *register_var(tvar akind, int maxcnt, char *aname){
+
 	int varsize;
-	//вычисляем размер для хранимых данных
-	//не работает!
-/*	switch(akind){
-		case tfloatvar:
-			varsize = sizeof(float);
-		break;
-		case tintvar:
-			varsize = sizeof(int);
-		break;
-		case tfloatarr:
-			varsize = sizeof(float)*maxcnt;
-		break;
-		case tintarr:
-			varsize = sizeof(int)*maxcnt;
-		break;
-		default: return -2; //ошибка типа данных
-	}*/
 	
 	//вычисляем размер для хранимых данных
 	if (akind == 0)
@@ -142,6 +122,7 @@ void *register_var(tvar akind, int maxcnt, char *aname)
 		varsize = sizeof(int)*maxcnt;
 	else
 		return -1;	//неизвестный тип данных
+
 	//проверка оставшегося свободного места
 	if ((pnvvars->current_end_vars+varsize)>(pnvvars->end_vars)){
 		return -2;	//недостаточно памяти
@@ -185,11 +166,8 @@ void *get_var(char *aname)
 };
 
 //сохранение контекста по имени в файл
-int save_context_f(char *aname){
+int save_context_f(){
 
-/*	 var_type;
-	 max_arr;
-	void *pdata;	*/					//указатель на данные переменной
 	if (pnvvars->file_mark == 0){
 		save_all("copy1.dat", pnvvars);
 		pnvvars->struct_cnt++;
@@ -201,9 +179,14 @@ int save_context_f(char *aname){
 		pnvvars->file_mark = 0;
 	}
 
-//	save_header("copy1.dat", pnvvars);
+	return 0;
+}
+/*int save_context_f(char *aname){
 
-	/*
+	var_type;
+	max_arr;
+	void *pdata;						//указатель на данные переменной
+
 	//получаем указатель описание сохраняемой переменной
 	int i;
 	descr_item_t *item_discr;
@@ -217,11 +200,11 @@ int save_context_f(char *aname){
 	}
 	tvar var_type = item_discr->kind;
 	int max_arr = item_discr->maxarraycnt;
-	void *pdata = item_discr->var;*/
+	void *pdata = item_discr->var;
 
 //	FILE *fopen()
 	return 0;
-}
+}*/
 
 static int save_header(char *filename, nvmem_header_t *p){
 
@@ -243,9 +226,6 @@ static int save_header(char *filename, nvmem_header_t *p){
 	}
 	fclose(fp);
 
-/*	for (int i=0; i<10; i++){
-		putc("10", fp);
-	}*/
 	return 0;
 };
 
@@ -253,8 +233,8 @@ static int save_all(char *filename, nvmem_header_t *p){
 
 	FILE *fp;
 	char *c;
-	int size = sizeof(nvmem_header_t)+pnvvars->descript_size+pnvvars->vars_size;
-
+//	int size = sizeof(nvmem_header_t)+pnvvars->descript_size+pnvvars->vars_size;
+	int size = pnvvars->descript_size+pnvvars->vars_size;
 	if ((fp = fopen(filename, "wb"))==NULL)
 	{
 		printf("Error occured while opening file \n");
@@ -264,7 +244,7 @@ static int save_all(char *filename, nvmem_header_t *p){
 	//устанавливаем указатель на начало структуры
 	c = (char*)p;
 
-	//посимвольно записываем в файл структуру
+	//посимвольно записываем в файл всё
 	for(int i=0; i<size; i++)
 	{
 		putc(*c++, fp);
@@ -317,6 +297,10 @@ nvmem_header_t *ld_phead(char *filename){
 	int size = sizeof(nvmem_header_t);
 	// выделяем память для считываемой структуры
 	nvmem_header_t * ptr = (nvmem_header_t*) malloc(size);
+	if(!ptr) {
+			printf ("Allocation failure.");
+			getchar();
+		}
 
 	if ((fp = fopen(filename, "rb")) == NULL)
 	    {
@@ -339,12 +323,48 @@ nvmem_header_t *ld_phead(char *filename){
 	return ptr;
 };
 
+nvmem_header_t *ld_pall(char *filename, nvmem_header_t *p){
+
+	FILE *fp;
+	char *c;
+	int i;
+
+	//int size = sizeof(nvmem_header_t);
+	int size = p->descript_size+p->vars_size;
+	// выделяем память для считываемой структуры
+	nvmem_header_t * ptr = (nvmem_header_t*) malloc(size);
+	if(!ptr) {
+		printf ("Allocation failure.");
+		getchar();
+	}
+
+	if ((fp = fopen(filename, "rb")) == NULL){
+		printf("Error occured while opening file \n");
+		return NULL;
+	}
+
+	// устанавливаем указатель на начало блока выделенной памяти
+	c = (char *)ptr;
+
+	// считываем посимвольно из файла
+	while ((i = getc(fp))!=EOF)
+	{
+		*c = i;
+		c++;
+	}
+
+	fclose(fp);
+	return ptr;
+};
+
 static int reload_struct(rl_reas reason){
 
-	nvmem_header_t *p1, *p2;
+	nvmem_header_t *p1, *p2, *pl;
+	int vars_col;
 
 	switch(reason){
 		case from_c1:
+			//получаем характеристики востанавливаемой структуры
 			p1 = ld_phead("copy1.dat");
 			//выделяем память
 			pnvvars = (nvmem_header_t*)calloc(1, p1->descript_size + p1->vars_size);
@@ -352,47 +372,99 @@ static int reload_struct(rl_reas reason){
 				printf ("Allocation failure.");
 //				exit (1);
 			}
-			//pnvvars = p1;
-			copy_header(p1);
-
-			//создаем copy2
+			//читаем весь файл
+			p1= ld_pall("copy1.dat", pnvvars);
+			memcpy(pnvvars, p1, p1->descript_size + p1->vars_size);
+			//вычисляем текущие указатели
+			pnvvars->begin_descript = (void *)pnvvars + sizeof(nvmem_header_t);
+			pnvvars->begin_vars = (void *)(pnvvars->begin_descript) + pnvvars->descript_maxcnt*sizeof(descr_item_t);
+			pnvvars->end_vars = (void *)(pnvvars->begin_vars) + pnvvars->vars_size;
+			vars_col = p1->current_end_vars - p1->begin_vars;
+			pnvvars->current_end_vars = pnvvars->begin_vars + vars_col;
+			for (int i=0; i<=pnvvars->lastitem; i++){
+				descr_rep(i);
+			}
+			//добавить создание copy2
 			break;
 		case from_c2:
 			break;
 		case from_last:
+			//читаем оба хидера
+			p1 = ld_phead("copy1.dat");
+			p2 = ld_phead("copy2.dat");
+			//сравниваем счетчики
+			if(p1->struct_cnt >= p2->struct_cnt){
+				pl = p1;
+			}
+			else{
+				pl = p2;
+			}
+			//выделяем память
+			pnvvars = (nvmem_header_t*)calloc(1, pl->descript_size + pl->vars_size);
+			if(!pnvvars) {
+				printf ("Allocation failure.");
+				getchar();
+			}
+			//читаем весь файл
+			if(p1->struct_cnt >= p2->struct_cnt){
+				pl= ld_pall("copy1.dat", pnvvars);
+			}
+			else{
+				pl= ld_pall("copy2.dat", pnvvars);
+			}
+			memcpy(pnvvars, pl, pl->descript_size + pl->vars_size);
+			//вычисляем текущие указатели
+			pnvvars->begin_descript = (void *)pnvvars + sizeof(nvmem_header_t);
+			pnvvars->begin_vars = (void *)(pnvvars->begin_descript) + pnvvars->descript_maxcnt*sizeof(descr_item_t);
+			pnvvars->end_vars = (void *)(pnvvars->begin_vars) + pnvvars->vars_size;
+			vars_col = pl->current_end_vars - pl->begin_vars;
+			pnvvars->current_end_vars = pnvvars->begin_vars + vars_col;
+			for (int i=0; i<=pnvvars->lastitem; i++){
+				descr_rep(i);
+			}
+
 			break;
 	}
 	return 0;
 };
 
-static int copy_header(nvmem_header_t *p){
+static int descr_rep(int i){
 
-	int vars_col;
+	descr_item_t *item_adr;
+	static void *vars_mark;
+	if (i==0)
+		vars_mark = pnvvars->begin_vars;
+	tvar kind;
+	int size;
+	//, pd1, pd2;
+	//pd1 = (void *)p->begin_descript + sizeof(descr_item_t)*i;
 
-	for (int i=0; i<NAME_LONG; i++){
-		pnvvars->copyright[i] = p->copyright[i];
-	}
-	for (int i=0; i<NAME_LONG; i++){
-		pnvvars->version[i] = p->version[i];
-		}
-	pnvvars->struct_cnt = p->struct_cnt;
-	pnvvars->descript_size = p->descript_size;
-	pnvvars->vars_size = p->vars_size;
-	pnvvars->descript_maxcnt = p->descript_maxcnt;
-	pnvvars->lastitem = p->lastitem;
+	item_adr = (void*)pnvvars->begin_descript + sizeof(descr_item_t)*i;
+	kind = item_adr->kind;
+	if (kind == 0)
+		size = sizeof(float);
+	else if (kind == 1)
+		size = sizeof(int);
+	else if (kind == 2)
+		size = sizeof(float)*item_adr->maxarraycnt;
+	else if (kind == 3)
+		size = sizeof(int)*item_adr->maxarraycnt;
+	else
+		return -1;	//неизвестный тип данных
 
-	//вычисляем текущие указатели
-	pnvvars->begin_descript = (void *)pnvvars + sizeof(nvmem_header_t);
-	pnvvars->begin_vars = (void *)(pnvvars->begin_descript) + pnvvars->descript_maxcnt*sizeof(descr_item_t);
-	pnvvars->end_vars = (void *)(pnvvars->begin_vars) + pnvvars->vars_size;
-	vars_col = p->current_end_vars - p->begin_vars;
-	pnvvars->current_end_vars = pnvvars->begin_vars + vars_col;
+	item_adr->var = vars_mark;
+	vars_mark +=size;
 
 	return 0;
-};
-
+}
 
 /*
+static int copy_data(nvmem_header_t *p){
+
+	for (int i=0; i)
+	return 0;
+}
+
 	FILE * fp3;
 	fp3 = fopen ("file.txt", "w+");
 	fprintf(fp3, "%s %s %s %d", "We", "are", "in", 2012);

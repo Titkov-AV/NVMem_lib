@@ -23,11 +23,13 @@ typedef enum {
 	tintarr=3
 } tvar;
 
+//файл востановления системы
 typedef enum{
 	from_c1 = 1,		//файл copy1 отсутсвует
 	from_c2,			//файл copy2 отсутсвует
-	from_last
+	from_last			//последний сохраненный
 } rl_reas;
+
 //структура описания item
 typedef struct {
 	char name_var[NAME_LONG];		//Имя переменной
@@ -56,6 +58,6 @@ extern int init(int descr_size, int var_size);
 extern void *register_var(tvar akind, int maxcnt, char *aname);
 //extern int *register_var(tvar akind, int maxcnt, char *aname);
 extern void *get_var(char *aname);
-extern int save_context_f(char *aname);
+extern int save_context_f();
 //-------------------------------
 #endif /* NVMEM_H_ */
